@@ -1,0 +1,9 @@
+{
+  "name": "museum-day",
+  "title": "A Day at the Museum",
+  "format": { "width": 1920, "height": 1080, "fps": 24, "bpm": 120, "duration": 45.0, "frames": 1080 },
+  "formats": ["16:9"],
+  "storyFormat": "morph chain (10 rooms, 9 shape morphs, 0 hard cuts)",
+  "style": "riso",
+  "review": { "safe": { "top": 60, "bottom": 110, "right": 60 }, "refs": {} }
+}

@@ -135,6 +135,7 @@ function endSheet() {
 // o.auto = the mask is "wherever any plate has ink" (line-only layers; paper knockouts do nothing there);
 // o.shapes = every fill and line also adds itself to the mask (props, tags, a hero printed over anything); T.rot rotates
 function beginLayer(pitch = PITCH.world, o = {}) {
+  if (typeof RUN_AT === 'function') RUN_AT(TT);   // a piece's hook: which plates have run at this time
   const P = plates(), J = RNG('reg', B % 3), m = ctx.getTransform(), T0 = o.T || { s: 1, x: 0, y: 0 };
   const T = { s: m.a * T0.s, x: m.e + m.a * T0.x, y: m.f + m.a * T0.y };
   const cr = Math.cos(T0.rot || 0), sr = Math.sin(T0.rot || 0), dv = (x, y) => [T.x + T.s * (x * cr - y * sr), T.y + T.s * (x * sr + y * cr)];
@@ -201,13 +202,26 @@ function dropouts(V) {   // static per boil variant: ~0.6% of pixels lose one pl
   }
   return (DROP[V] = a);
 }
+// which plates the press has run so far: RUN[ink] scales a plate's tones (0 = that ink isn't printed yet),
+// RUN_EDGE[ink] = a screen x: the plate prints only left of it (a roller pass sweeping across the sheet).
+// The defaults print everything; a piece sets them per frame (e.g. a day that gains one ink per act).
+const RUN = { teal: 1, pink: 1, yellow: 1 }, RUN_EDGE = { teal: Infinity, pink: Infinity, yellow: Infinity };
+const runLUT = (g) => Uint8Array.from({ length: 256 }, (_, v) => Math.round(v * clamp(g)));
 // print the current layer into the sheet: screen each plate, multiply the inks, blend by the mask
 function printLayer() {
   while (RL.clips) unclip();
   const { T, pitch, box: [x0, y0, x1, y1], auto } = RL, w = x1 - x0, h = y1 - y0;
   if (w <= 0 || h <= 0) return;
-  const pl0 = PLATE.teal.g.getImageData(x0, y0, w, h).data, pl1 = PLATE.pink.g.getImageData(x0, y0, w, h).data, pl2 = PLATE.yellow.g.getImageData(x0, y0, w, h).data;
-  const m = auto ? null : PLATE.mask.g.getImageData(x0, y0, w, h).data;
+  let pl0 = PLATE.teal.g.getImageData(x0, y0, w, h).data, pl1 = PLATE.pink.g.getImageData(x0, y0, w, h).data, pl2 = PLATE.yellow.g.getImageData(x0, y0, w, h).data;
+  let m = auto ? null : PLATE.mask.g.getImageData(x0, y0, w, h).data;
+  if (INK_NAMES.some((n) => RUN[n] < 1 || RUN_EDGE[n] < x1)) {   // plates the press hasn't run (fully) yet
+    if (auto) { m = new Uint8ClampedArray(pl0.length); for (let i4 = 0; i4 < m.length; i4 += 4) m[i4] = (pl0[i4] | pl1[i4] | pl2[i4]) > 6 ? 255 : 0; }
+    [pl0, pl1, pl2] = [pl0, pl1, pl2].map((pl, k) => {
+      const n = INK_NAMES[k], L = runLUT(RUN[n]), e = RUN_EDGE[n] - x0, q = new Uint8ClampedArray(pl.length);
+      for (let y = 0, i4 = 0; y < h; y++) for (let x = 0; x < w; x++, i4 += 4) q[i4] = x < e ? L[pl[i4]] : 0;
+      return q;
+    });
+  }
   const pp = paperPixels(), out = OUT.data, drop = dropouts(B % 3), p = pitch * T.s;
   const c0 = Math.cos(ANGLE.teal * DEG) / p, s0 = Math.sin(ANGLE.teal * DEG) / p;
   const c1 = Math.cos(ANGLE.pink * DEG) / p, s1 = Math.sin(ANGLE.pink * DEG) / p;
@@ -243,6 +257,82 @@ function printLayer() {
 const LEVEL_OF = Uint8Array.from({ length: 256 }, (_, v) => Math.round((v * LEVELS) / 255));
 // sugar: one layer printed by fn
 function printed(pitch, o, fn) { beginLayer(pitch, o); fn(); printLayer(); }
+// ---------------------------------------------------------------------
+//  PHOTOS. The user's own photos (assets/, see SKILL.md -> Assets) are colour-separated into the three
+//  plates once, cached, then drawn into the current layer like any fill, so they get the same screens,
+//  misregistration and wear as everything else. The separation inverts the overprint model in density:
+//  -ln(rgb / paper) = sum over inks of tone * -ln(1 - absorb), least squares, clamped to 0..1.
+//  inks: 'tpy' (all three), 'tp', 't' ... (a subset solves with only those inks: 't' is a teal monotone).
+// ---------------------------------------------------------------------
+const SEP = new Map();
+function separation(name, inks = 'tpy', o = {}) {
+  const key = name + ':' + inks + ':' + (o.lift ?? 0) + ':' + (o.gain ?? 1);
+  if (SEP.has(key)) return SEP.get(key);
+  const img = asset(name); if (!img) return null;
+  const w = img.naturalWidth, h = img.naturalHeight, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
+  const px = g.getImageData(0, 0, w, h).data, use = INK_NAMES.filter((n) => inks.includes(n[0]));
+  // auto levels: the 1st and 99th percentile of luminance stretched to the paper and the darkest overprint
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < px.length; i += 4) hist[(px[i] * 77 + px[i + 1] * 150 + px[i + 2] * 29) >> 8]++;
+  let lo = 0, hi = 255, acc = 0; const N = w * h;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc < N * 0.01) lo = v; if (acc < N * 0.99) hi = v; }
+  const span = Math.max(30, hi - lo), lift = o.lift ?? 0, gain = o.gain ?? 1;
+  // densities of each ink at full coverage, per channel; the normal equations of the chosen inks
+  const D = use.map((n) => ABSORB[INK_NAMES.indexOf(n)].map((a) => -Math.log(1 - a)));
+  const k = use.length, A = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => D[i].reduce((s, v, ch) => s + v * D[j][ch], 0)));
+  const inv = invert(A), dark = PAPER.map((p, ch) => -Math.log(Math.max(1e-3, inkRGB(MIX.dark)[ch] / p)));
+  const out = use.map(() => new Uint8ClampedArray(w * h));
+  const dens = new Float32Array(256 * 3);   // per channel value -> density after levels
+  for (let ch = 0; ch < 3; ch++) for (let v = 0; v < 256; v++) {
+    const u = clamp((v - lo) / span), r = PAPER[ch] * Math.exp(-dark[ch] * (1 - u));   // u = 1 -> paper, 0 -> the darkest overprint
+    dens[ch * 256 + v] = Math.max(0, -Math.log(Math.max(1, r) / PAPER[ch])) * gain + lift;
+  }
+  for (let i = 0, p = 0; i < px.length; i += 4, p++) {
+    const d0 = dens[px[i]], d1 = dens[256 + px[i + 1]], d2 = dens[512 + px[i + 2]];
+    const b = D.map((Dk) => Dk[0] * d0 + Dk[1] * d1 + Dk[2] * d2);
+    for (let a = 0; a < k; a++) { let t = 0; for (let j = 0; j < k; j++) t += inv[a][j] * b[j]; out[a][p] = Math.round(clamp(t) * 255); }
+  }
+  const plates = {};
+  use.forEach((n, a) => {
+    const pc = document.createElement('canvas'); pc.width = w; pc.height = h;
+    const pg = pc.getContext('2d'), id = pg.createImageData(w, h);
+    for (let p = 0, i = 0; p < w * h; p++, i += 4) { const v = out[a][p]; id.data[i] = v; id.data[i + 1] = v; id.data[i + 2] = v; id.data[i + 3] = 255; }
+    pg.putImageData(id, 0, 0); plates[n] = pc;
+  });
+  const s = { w, h, plates }; SEP.set(key, s); return s;
+}
+function invert(A) {   // a small matrix inverse (Gauss-Jordan)
+  const n = A.length, M = A.map((r, i) => [...r, ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))]);
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]]; const d = M[c][c] || 1e-9;
+    for (let j = 0; j < 2 * n; j++) M[c][j] /= d;
+    for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c]; for (let j = 0; j < 2 * n; j++) M[r][j] -= f * M[c][j]; }
+  }
+  return M.map((r) => r.slice(n));
+}
+// printPhoto(name, x, y, w, h, o): the photo's plates drawn into the current layer over the box (illustration
+// coords), knocking out what is under it. o.inks ('tpy' | 'tp' | 't' ...), o.crop = [sx, sy, sw, sh] in source
+// pixels (default: cover the box, centred; o.focus = [fx, fy] 0..1 moves the crop), o.alpha (0..1: crossfade
+// over what the plates already hold), o.lift / o.gain (density), o.clip (a path the photo is clipped to).
+function printPhoto(name, x, y, w, h, o = {}) {
+  const s = separation(name, o.inks ?? 'tpy', o); if (!s) return;
+  let crop = o.crop;
+  if (!crop) {
+    const k = Math.max(w / s.w, h / s.h), sw = w / k, sh = h / k, f = o.focus ?? [0.5, 0.5];
+    crop = [(s.w - sw) * f[0], (s.h - sh) * f[1], sw, sh];
+  }
+  if (o.clip) clipTo(o.clip);
+  for (const n of INK_NAMES) {
+    const g = PLATE[n].g; g.save(); g.globalAlpha = o.alpha ?? 1; g.globalCompositeOperation = 'source-over';
+    if (s.plates[n]) g.drawImage(s.plates[n], crop[0], crop[1], crop[2], crop[3], x, y, w, h);
+    else { g.fillStyle = '#000'; g.fillRect(x, y, w, h); }
+    g.restore();
+  }
+  if (RL.shapes || o.mask) maskFill(rect(x, y, w, h));
+  if (o.clip) unclip();
+}
 // a few hundred tiny single-ink specks knocked into a large dark (wear you can see)
 function specks(x0, y0, x1, y1, n, key) {
   const R = RNG('speck', key);

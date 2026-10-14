@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Day at the Museum</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1d1a17; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  canvas { max-width: 100vw; max-height: 100vh; width: auto; height: auto; display: block; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+"use strict";
+// =====================================================================
+//  A DAY AT THE MUSEUM — 16:9, 45.0s @ 120 BPM, 24fps, riso. The user's own photos from Greenwich Park and
+//  the National Maritime Museum, colour-separated and printed in three inks.
+//  The device: the day prints one ink at a time. The morning in the park is teal only; the museum adds pink
+//  (a roller pass in Ocean Court); Pacific Encounters adds yellow (the lights come up on the cabinet); the walk
+//  home is the opening view again, now in all three inks.
+//  Build: node <skill>/tools/build.mjs pieces/museum-day
+// =====================================================================
+const FPS = 24, W = 1920, H = 1080;
+{ const cv = document.getElementById('c'); cv.width = W; cv.height = H; }
+const BPM = 120, GRID0 = 0, BEAT = 60 / BPM, E8 = BEAT / 2, E16 = BEAT / 4;
+const DURATION = 45.0;
+const NFRAMES = Math.round(DURATION * FPS);
+const LOOP_T = NFRAMES / FPS;
+const SAFE = { top: 60, bottom: 110, right: 60 };
+const PRINTF = '"Arial Black", "Helvetica Neue", "Franklin Gothic Heavy", Impact, "DejaVu Sans", "Liberation Sans", sans-serif';
+const HAND = '"Ink Free", "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive';
+const CX = W / 2;
+const onBeat = (t) => +(GRID0 + Math.round((t - GRID0) / E8) * E8).toFixed(4);
+
+// the bridges (morph centres) and the eras between them
+const M = { court: 5.0, ship: 10.5, deck: 16.0, wall: 20.0, strings: 24.5, dark: 27.5, tapa: 33.5, floor: 37.5, home: 40.5 };
+const ERA_LIST = [
+  [0.0,       M.court,   () => scenePark(false)],
+  [M.court,   M.ship,    () => sceneCourt()],
+  [M.ship,    M.deck,    () => sceneShip()],
+  [M.deck,    M.wall,    () => sceneDeck()],
+  [M.wall,    M.strings, () => sceneWall()],
+  [M.strings, M.dark,    () => sceneStrings()],
+  [M.dark,    M.tapa,    () => sceneCabinet()],
+  [M.tapa,    M.floor,   () => sceneTapa()],
+  [M.floor,   M.home,    () => sceneFloor()],
+  [M.home,    DURATION,  () => scenePark(true)],
+];
+const SHOTS = [
+  ['park',     0, 0.0,       M.court,   'morning in the park, teal only: tilt from the oak to the towers'],
+  ['court',    1, M.court,   M.ship,    'Ocean Court: the pink plate rolls in; the bean on the walkway'],
+  ['ship',     2, M.ship,    M.deck,    'the ship model: a slow pan along the hull'],
+  ['deck',     3, M.deck,    M.wall,    'extreme close-up: the bean on the model deck among the cannons'],
+  ['wall',     4, M.wall,    M.strings, 'the flintlock, printed as a card on the red wall'],
+  ['strings',  5, M.strings, M.dark,    'the blue strings: the bean steps through'],
+  ['cabinet',  6, M.dark,    M.tapa,    'lights down on the cabinet, then the yellow plate: lights up'],
+  ['tapa',     7, M.tapa,    M.floor,   'the tapa costume: a push-in to the fabric flower'],
+  ['floor',    8, M.floor,   M.home,    'the floor screen: the bean looks down at the fish'],
+  ['home',     9, M.home,    DURATION,  'home: the opening view, now in all three inks'],
+];
+const TIMELINE = {
+  width: W, height: H, fps: FPS, bpm: BPM, gridOffset: GRID0, duration: DURATION, frames: NFRAMES, loop: LOOP_T, safe: SAFE, aspect: '16:9',
+  format: 'morph-chain',
+  shots: SHOTS.map(([key, era, t0, t1, title], i) => ({ id: i + 1, key, era, t0, t1, title })),
+  cuts: [],
+  morphs: Object.values(M),
+  cues: {
+    leaves: 1.5, pink: 6.0, walk: 7.0, wow: 12.0, hop: 18.0, tick: 21.0,
+    part: 25.5, down: 28.5, up: 30.0, look: 35.0, ripple: 38.5, sit: 42.0,
+  },
+  acts: [
+    { name: '1 Morning (teal)',       role: 'build',   t0: 0.0,       t1: M.court },
+    { name: '2 The museum (+pink)',   role: 'journey', t0: M.court,   t1: M.deck },
+    { name: '3 Deck, wall, strings',  role: 'peak',    t0: M.deck,    t1: 28.5 },
+    { name: '4 Lights down',          role: 'silence', t0: 28.5,      t1: 30.0 },
+    { name: '5 Pacific (+yellow)',    role: 'gift',    t0: 30.0,      t1: M.home },
+    { name: '6 Home (three inks)',    role: 'goodbye', t0: M.home,    t1: DURATION },
+  ],
+  board: [
+    { t: 4.5,  title: 'morning, teal only: Greenwich Park', sound: 'near-silent pad, bird blips', next: 'the bean → the bean' },
+    { t: 8.0,  title: 'Ocean Court: the pink plate lands', sound: 'a hit on the roller, plucks begin', next: 'window → gilt frame' },
+    { t: 13.0, title: 'the ship model', sound: 'groove', next: 'hull → hull, closer' },
+    { t: 18.5, title: 'on the deck', sound: 'busiest', next: 'grating → card' },
+    { t: 22.5, title: 'the flintlock on the red wall', sound: 'ticks', next: 'card → gilt painting' },
+    { t: 26.0, title: 'through the blue strings', sound: 'thinning', next: 'the bean → the bean' },
+    { t: 29.0, title: 'lights down', sound: 'near silence', next: 'the lights come up' },
+    { t: 31.5, title: 'the yellow plate: Pacific Encounters', sound: 'the loudest hit', next: 'triangle → triangle' },
+    { t: 35.5, title: 'the tapa costume', sound: 'warm chord', next: 'flower → ripple' },
+    { t: 39.0, title: 'the floor screen', sound: 'fading', next: 'ripple → the bean' },
+    { t: 42.0, title: 'home, in three inks', sound: 'the opening pad, full', next: 'end' },
+  ],
+  narration: [],
+};
+window.TIMELINE = TIMELINE;
