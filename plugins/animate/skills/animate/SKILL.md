@@ -90,6 +90,7 @@ Ask at intake (question 7) when the subject is a product. Then:
 - `node tools/capture.mjs <url> pieces/<name>/assets/home.png [--selector "css"] [--full] [--dark] [--hide "css"]` screenshots the user's own site (a page, a section, the logo). Ask before capturing anything they don't own. Logo files they give you go in `assets/` too (PNG, SVG, JPG, WEBP).
 - `tools/build.mjs` embeds everything in `assets/` into `index.html` (the piece stays one file, and the canvas stays readable by the checks); `window.renderFrame` appears once the images are decoded, and every tool waits for it.
 - Draw them with `drawAsset('home.png', x, y, w, h, { fit: 'cover' | 'contain', r })` inside the style's own framing (a torn-paper photo, an inked frame, a printed card) so they belong to the look. `asset(name)` returns the image.
+- **Photo library:** [assets/greenwich/](assets/greenwich/README.md) holds the user's own photos (Greenwich Park and the National Maritime Museum: ship models, Pacific Encounters, artefacts, textures). Its README describes each one and flags the sensitive photos. Copy only the photos a piece uses into `pieces/<name>/assets/`.
 - **Real product UI only:** animate the real screens (crop, push in, reveal, point at them with the hero); never draw a fake screen as if it were the product. Sample brand colours from the screenshots.
 
 ## Formats: one piece, several shapes (optional)
