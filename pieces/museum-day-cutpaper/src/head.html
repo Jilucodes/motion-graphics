@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Museum Day, Cut Paper</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1b1714; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  canvas { max-width: 100vw; max-height: 100vh; width: auto; height: auto; display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+"use strict";
+// =====================================================================
+//  A DAY AT THE MUSEUM — cut-paper / collage look test. 16:9, four held 2s frames:
+//  the park, Ocean Court, the ship, Pacific Encounters. The user's photos become torn prints and cut-outs.
+// =====================================================================
+const FPS = 24, W = 1920, H = 1080;
+const BPM = 120, BEAT = 60 / BPM, E8 = BEAT / 2, E16 = BEAT / 4;
+const DURATION = 8.0, NFRAMES = Math.round(DURATION * FPS), LOOP_T = NFRAMES / FPS;
+const SAFE = { top: 60, bottom: 110, right: 60 };
+const HAND = '"Ink Free", "Segoe Print", "Bradley Hand", "Chalkboard SE", "Comic Sans MS", "Comic Neue", cursive';
+const CX = W / 2;
+const ERA_LIST = [[0, 2, () => cpPark()], [2, 4, () => cpCourt()], [4, 6, () => cpShip()], [6, 8, () => cpPacific()]];
+const TIMELINE = {
+  width: W, height: H, fps: FPS, bpm: BPM, duration: DURATION, frames: NFRAMES, loop: LOOP_T, safe: SAFE, aspect: '16:9',
+  format: 'morph-chain',
+  shots: [['park', 0, 0, 2], ['court', 1, 2, 4], ['ship', 2, 4, 6], ['pacific', 3, 6, 8]].map(([key, era, t0, t1], i) => ({ id: i + 1, key, era, t0, t1, title: key })),
+  cuts: [2, 4, 6], morphs: [], cues: {}, acts: [], board: [], narration: [],
+};
+window.TIMELINE = TIMELINE;

@@ -1,0 +1,8 @@
+{
+  "name": "museum-day-cutpaper",
+  "title": "A Day at the Museum: cut-paper look test",
+  "format": { "width": 1920, "height": 1080, "fps": 24, "bpm": 120, "duration": 8.0, "frames": 192 },
+  "storyFormat": "look test (4 held frames)",
+  "style": "cut-paper",
+  "review": { "safe": { "top": 60, "bottom": 110, "right": 60 }, "refs": {} }
+}
