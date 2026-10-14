@@ -47,10 +47,10 @@
   pad(37.5, 40.6, ['D3', 'A3', 'Fs4'], 0.035, { cut: 900, att: 0.3, rel: 0.3, send: 0.5 });
   each(37.5, 40.5, E8, (t, k) => { if (k % 3 !== 2) pluck(t, nz(FIG[3][k % 8]) , 0.035, Math.sin(k) * 0.4, 0.45, 2400, 0.45); });
   // home: the morning pad again, now full, the bean's fifth, then the loop
-  pad(40.5, 45.0, ['D3', 'A3', 'D4', 'Fs4'], 0.035, { type: 'triangle', cut: 1000, att: 0.3, rel: 0.3, send: 0.35 });
-  drone(40.5, 45.0, nz('D2'), 0.04, { att: 0.3, rel: 0.3 });
-  BEAN(cu.sit, 0.17, [['D4', 0], ['A4', E8], ['D5', BEAT]]);
-  each(43.0, 44.6, BEAT, (t, k) => pluck(t, nz(['Fs4', 'E4', 'D4', 'A3'][k]), 0.035, 0.1, 0.6, 1800, 0.4));
+  pad(40.5, 45.0, ['D3', 'A3', 'D4', 'Fs4'], 0.016, { type: 'triangle', cut: 1000, att: 0.3, rel: 0.3, send: 0.35 });
+  drone(40.5, 45.0, nz('D2'), 0.015, { att: 0.3, rel: 0.3 });
+  BEAN(cu.sit, 0.09, [['D4', 0], ['A4', E8], ['D5', BEAT]]);
+  each(43.0, 44.6, BEAT, (t, k) => pluck(t, nz(['Fs4', 'E4', 'D4', 'A3'][k]), 0.02, 0.1, 0.6, 1800, 0.4));
 
   // ================= SFX =================
   to = 's';

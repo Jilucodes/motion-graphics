@@ -137,7 +137,7 @@ function sceneCourt() {
     });
   });
   endSheet();
-  cap16('Ocean Court', 6.75);
+  tag16('Ocean Court', 6.75);
 }
 
 // =====================================================================
@@ -147,7 +147,8 @@ const SHIP_FRAME = [S(522, 2, KL), S(1049, 2, KL), S(1049, 338, KL), S(522, 338,
 const SHIP_HULL = () => ellipsePts(...S(745, 660, KL), 640 * KL, 185 * KL, -0.02, 96);  // the hull (the bridge out)
 function shipCam(t) {
   const u = EZ.io(seg(t, M.ship, M.deck - 0.6));
-  return camOf({ z: lerp(1, 1.12, u), p: [lerp(600 * KL, 900 * KL, u), lerp(405, 640, u) * KL], to: [960, 540] });
+  const z = lerp(1, 1.12, u);   // keep the frame inside the photo: centre x within [960 / z, 1920 - 960 / z]
+  return camOf({ z, p: [clamp(lerp(600 * KL, 900 * KL, u), 960 / z, W - 960 / z), lerp(405, 640, u) * KL], to: [960, 540] });
 }
 function sceneShip() {
   beginSheet();
