@@ -59,14 +59,17 @@ a re-take of the voice re-times the picture.
 A warm, calm, deliberate keynote presenter, designed as an original voice (ElevenLabs voice design).
 Never a clone or imitation of a real person's voice.
 
-## Fitting other niches
+## Scope: history only
 
-| Niche | Fit | How |
-|---|---|---|
-| Comedy / parody | Full | As above |
-| Light history (inventions, odd firsts, schemes) | Full | "Introducing… the Trojan Horse." Features from the record; the silent beat is the historical outcome |
-| Tragic true events (disasters, deaths, atrocities) | Structure only | Keep problem → reveal → escalation → silence → button, drop the parody register; it reads as mocking victims |
-| Dark psychology | Strong, as a "villain keynote" | The tactic is the product; a study is the "lab benchmark"; the button exposes the cost. See `scripts/dark-psychology/the-favor.md` |
+This formula is used for history videos only.
+
+| History topic | How |
+|---|---|
+| Inventions, odd firsts, schemes, plans that backfired | The full formula: "Introducing… the Trojan Horse." Features come from the record; the silent beat is the historical outcome |
+| Tragic events (disasters, wars, deaths) | Structure, pauses and word–picture timing only. Drop the parody register; it reads as mocking the people who died |
+
+Every feature line is a claim about the past: check it against a source and keep the source with
+the script.
 
 ## Template
 
